@@ -8,3 +8,6 @@ reformats it into a hex string.
 
 # createBlob
 createBlob takes in a String parameter representing the file path. It hashes the file uses the hashFile method and saves the hash into a String. It then reads the contents of the file into an array of bytes and then creates a new file in git/objects with the name of the hash. It writes the bytes of the hashed file into this new file.
+
+# stageFiles
+stageFiles takes in a String array representing the file paths of the files staged and a String array with their hashes. It writes the hashes next to the name of the file they represent in git/index. If any file path is invalid, or if a hash for a file isn't provided, it throws an exception.
