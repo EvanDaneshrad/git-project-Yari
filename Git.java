@@ -13,41 +13,8 @@ import java.util.HexFormat;
 public class Git {
 
     public static void main(String[] args) {
-        init();
         try {
-            System.out.println("== Testing fileHash ==");
-            System.out.println(hashFile("test.txt"));
-            System.out.println("== Testing createBlob ==");
-            createBlob("test.txt");
-            System.out.println("== TESTING STAGING FILES ==");
-            BufferedWriter writer = new BufferedWriter(new FileWriter("Hello.txt"));
-            writer.write("I have changed this file once.");
-            writer.close();
-            String[] stagedFiles = {"Hello.txt", "test.txt"};
-            String[] hashes = new String[stagedFiles.length];
-            for (int i = 0; i < stagedFiles.length; i++) {
-                hashes[i] = hashFile(stagedFiles[i]);
-            }
-            System.out.println("Files are ready to be staged.");
-            stageFiles(stagedFiles, hashes);
-            BufferedReader br = new BufferedReader(new FileReader("git/index"));
-            writer = new BufferedWriter(new FileWriter("Hello.txt"));
-            System.out.println("Current first line in git/index is: " + br.readLine());
-            br.close();
-            writer.write("I have changed this file twice!" + "\n");
-            writer.write("Now I have written three.");
-            writer.close();
-            System.out.println("Staging again!");
-            for (int i = 0; i < stagedFiles.length; i++) {
-                hashes[i] = hashFile(stagedFiles[i]);
-            }
-            System.out.println("Files are ready to be staged.");
-            stageFiles(stagedFiles, hashes);
-            br = new BufferedReader(new FileReader("git/index"));
-            System.out.println(
-                    "After file change, the new first line in git/index: " + br.readLine());
-            br.close();
-
+            testGit();
         } catch (IOException e) {
             System.out.println("File error: " + e.getMessage());
         }
@@ -126,4 +93,93 @@ public class Git {
         }
         bw.close();
     }
+
+    public static void testGit() throws IOException {
+        System.out.println("== Initial set up ==");
+             init();
+        File testFile = new File("test.txt");
+        File helloFile = new File("Hello.txt");
+        File testGit = new File("git/objects/wow.txt");
+        testGit.createNewFile();
+        testFile.createNewFile();
+        helloFile.createNewFile();
+        System.out.println("Git created: " + checkIfGitExists());
+        System.out.println("Trying to create repository again");
+        init();
+        System.out.println("Did wow.txt need to be created (did init() overwrite the original structure)? " + testGit.createNewFile());
+        FileWriter writer = new FileWriter("test.txt");
+         FileWriter writer2 = new FileWriter("hello.txt");
+         writer.write("I am testing this file for hashing.");
+         writer2.write("Hello world!");
+         writer.close();
+         writer2.close();
+        // System.out.println("== Testing fileHash ==");
+        // System.out.println(hashFile("test.txt"));
+        // System.out.println("== Testing createBlob ==");
+        // createBlob("test.txt");
+        // System.out.println("== TESTING STAGING FILES ==");
+        // BufferedWriter writer = new BufferedWriter(new FileWriter("Hello.txt"));
+        // writer.write("I have changed this file once.");
+        // writer.close();
+        // String[] stagedFiles = {"Hello.txt", "test.txt"};
+        // String[] hashes = new String[stagedFiles.length];
+        // for (int i = 0; i < stagedFiles.length; i++) {
+        // hashes[i] = hashFile(stagedFiles[i]);
+        // }
+        // System.out.println("Files are ready to be staged.");
+        // stageFiles(stagedFiles, hashes);
+        // BufferedReader br = new BufferedReader(new FileReader("git/index"));
+        // writer = new BufferedWriter(new FileWriter("Hello.txt"));
+        // System.out.println("Current first line in git/index is: " + br.readLine());
+        // br.close();
+        // writer.write("I have changed this file twice!" + "\n");
+        // writer.write("Now I have written three.");
+        // writer.close();
+        // System.out.println("Staging again!");
+        // for (int i = 0; i < stagedFiles.length; i++) {
+        // hashes[i] = hashFile(stagedFiles[i]);
+        // }
+        // System.out.println("Files are ready to be staged.");
+        // stageFiles(stagedFiles, hashes);
+        // br = new BufferedReader(new FileReader("git/index"));
+        // System.out.println("After file change, the new first line in git/index: " +
+        // br.readLine());
+        // br.close();
+        testGit.delete();
+        cleanUp();
+
+    }
+
+    public static boolean checkIfGitExists() throws IOException {
+        if (new File("git").mkdir()) {
+            return false;
+        }
+        if (new File("git/objects").mkdir()) {
+            return false;
+        }
+        if (new File("git/index").createNewFile()) {
+            return false;
+        }
+        if (new File("git/HEAD").createNewFile()) {
+            return false;
+        }
+        return true;
+    }
+
+    public static void cleanUp() {
+        File git = new File("git");
+        File gitObjects = new File("git/objects");
+        File gitIndex = new File("git/index");
+        File gitHead = new File("git/HEAD");
+        File test = new File("test.txt");
+        File hello = new File("Hello.txt");
+        gitObjects.delete();
+        gitIndex.delete();
+        gitHead.delete();
+        git.delete();
+        test.delete();
+        hello.delete();
+    }
+
+
 }
