@@ -13,8 +13,8 @@ createBlob takes in a String parameter representing the file path. It hashes the
 
 # stageFiles
 
-stageFiles takes in a String array representing the file paths of the files staged and a String array with their hashes. It writes the hashes next to the name of the file they represent in git/index. If any file path is invalid, or if a hash for a file isn't provided, it throws an exception.
+stageFiles takes in a String array representing the file paths of the files staged and a String array with their hashes. It creates BLOBS from the files using createBlob. It then writes the hashes next to the name of the file they represent in git/index. If any file path is invalid, or if a hash for a file isn't provided, it throws an exception.
 
 # Testing methodology
 
-Testing begins by first initializing the git repository, then checking if all required files and directory were created using checkIfGitExists. The init() method is called again to make sure it doesn't recreate the repositories (done by creating wow.txt in git/objects during the initial set up and checking if it needed to be recreated). The cleanup method is used at the end to delete the git structure and test files.
+Testing begins by first initializing the git repository, then checking if all required files and directory were created using checkIfGitExists. The init() method is called again to make sure it doesn't recreate the repositories (done by creating wow.txt in git/objects during the initial set up and checking if it exists after the second set up). The cleanup method is used at the end to delete the git structure and test files. test.txt is then hashed for testing purposes (hash is checked using the terminal). From there, stageFiles is tested twice. Both times the hashes of the files are printed out. The contents of the index file is also printed out both times for verification of the hashes.
