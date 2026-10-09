@@ -76,28 +76,29 @@ public class Git {
         return "";
     }
 
-    //Bugs to fix:
-    //Two files with the same path cannot exist in index
-    //Adding to index doesn't clear the file
+    // Bugs to fix:
+    // Two files with the same path cannot exist in index
+    // Adding to index doesn't clear the file
     public static void stageFiles(String[] filePaths, String[] hashes) throws IOException {
 
-        //this represents the files that have already been staged
+        // this represents the files that have already been staged
         ArrayList<String> stagedFiles = new ArrayList<String>();
 
-        //copy what's already in index
+        // copy what's already in index
         BufferedReader indexReader = new BufferedReader(new FileReader("git/index"));
 
         StringBuilder indexContent = new StringBuilder();
-        
+
 
         String line;
 
-        while((line = indexReader.readLine()) != null) {
+        while ((line = indexReader.readLine()) != null) {
             indexContent.append(line);
             indexContent.append("\n");
         }
 
-        //delete the last char from indexContent as it will always be a blank line if something is appended to it
+        // delete the last char from indexContent as it will always be a blank line if something is
+        // appended to it
         if (indexContent.length() > 0) {
             indexContent.deleteCharAt(indexContent.length() - 1);
         }
@@ -120,7 +121,7 @@ public class Git {
 
         System.out.println(indexContent.toString());
 
-        //write in indexContent before staging new files
+        // write in indexContent before staging new files
         bw.write(indexContent.toString());
 
         for (int i = 0; i < filePaths.length; i++) {
@@ -129,15 +130,17 @@ public class Git {
                 throw new IOException("No such file: " + filePaths[i]);
             }
 
-            //before staging the file check to make sure that it hasn't already been staged and that it's not already inside of index
-            //if indexContent contains filePaths[i] or filePaths[i] has already been staged continue
+            // before staging the file check to make sure that it hasn't already been staged and
+            // that it's not already inside of index
+            // if indexContent contains filePaths[i] or filePaths[i] has already been staged
+            // continue
             if (!willFileBeStaged(stagedFiles, indexContent.toString(), filePaths[i])) {
                 continue;
             } else {
-                //only write to index if neither of the above conditions are true
+                // only write to index if neither of the above conditions are true
                 bw.write(hashes[i] + " git-project-Yari/" + filePaths[i]);
 
-                //write in a new line if the next file is gonna be staged
+                // write in a new line if the next file is gonna be staged
                 if (i != filePaths.length - 1) {
                     if (willFileBeStaged(stagedFiles, indexContent.toString(), filePaths[i + 1])) {
                         bw.write("\n");
@@ -152,9 +155,11 @@ public class Git {
         bw.close();
     }
 
-    //this method determines whether or not a file will be staged
-    //it takes in an ArrayList of files that have already been staged and the contents of the index file before staging and the file path
-    public static boolean willFileBeStaged(ArrayList<String> stagedFiles, String indexContent, String filePath) {
+    // this method determines whether or not a file will be staged
+    // it takes in an ArrayList of files that have already been staged and the contents of the index
+    // file before staging and the file path
+    public static boolean willFileBeStaged(ArrayList<String> stagedFiles, String indexContent,
+            String filePath) {
         if (indexContent.contains(filePath)) {
             return false;
         } else if (stagedFiles.contains(filePath)) {
@@ -164,93 +169,181 @@ public class Git {
         }
     }
 
-    public static void testGit() throws IOException {
+     public static void testGit() throws IOException {
         System.out.println("== Initial set up ==");
+
         init();
+
         File testFile = new File("test.txt");
         File helloFile = new File("Hello.txt");
         File testGit = new File("git/objects/wow.txt");
+
         testGit.createNewFile();
         testFile.createNewFile();
         helloFile.createNewFile();
+
         System.out.println("Git created: " + checkIfGitExists());
         System.out.println("Trying to create repository again");
+
         init();
+
+        //if wow.txt still exists that means init() didn't create a new repository and the old one is the one we have rn
         System.out.println("Does wow.txt still exist? " + testGit.exists());
-        FileWriter w = new FileWriter("test.txt");
-        FileWriter writer2 = new FileWriter("hello.txt");
-        w.write("I am testing this file for hashing.");
-        writer2.write("Hello world!");
-        w.close();
-        writer2.close();
+
+        //changing the name of this writer from w to testWriter
+        FileWriter testWriter = new FileWriter("test.txt");
+
+        //changing the name of this writer from writer2 to helloWriter
+        //changing file path from: "hello.txt" to "Hello.txt"
+        FileWriter helloWriter = new FileWriter("Hello.txt");
+
+        testWriter.write("I am testing this file for hashing.");
+        helloWriter.write("Hello world!");
+
+        testWriter.close();
+        helloWriter.close();
+
+        System.out.println();
+
         System.out.println("== Testing fileHash ==");
+
         System.out.println(hashFile("test.txt"));
+
+        System.out.println("Testing fileHash with a file that has multiple lines written into it");
+
+        //writer to rewrite the BLOB of "test.txt" to have multiple lines
+        FileWriter testWriter1 = new FileWriter("test.txt");
+
+        testWriter1.write("I am testing this file for hashing.");
+        testWriter1.write("\nAdding another line to the BLOB of this file.");
+
+        testWriter1.close();
+
+        System.out.println(hashFile("test.txt"));
+
+        System.out.println();
+
         System.out.println("== TESTING STAGING FILES ==");
-        BufferedWriter writer = new BufferedWriter(new FileWriter("Hello.txt"));
-        writer.write("I have changed this file once.");
-        writer.close();
-        String[] stagedFiles = {"Hello.txt", "test.txt", "Hello.txt"};
+
+        //changing the name of this writer from: "writer" to: "helloWriter1"
+        BufferedWriter helloWriter1 = new BufferedWriter(new FileWriter("Hello.txt"));
+
+        helloWriter1.write("I have changed this file once.");
+
+        helloWriter1.close();
+
+        //Testing two files with identical content but different paths
+        //should produce two lines in index but one file in objects/
+        File duplicateHelloFile = new File("Hello1.txt");
+
+        duplicateHelloFile.createNewFile();
+
+        FileWriter duplicateHelloFileWriter = new FileWriter("Hello1.txt");
+
+        duplicateHelloFileWriter.write("I have changed this file once.");
+
+        duplicateHelloFileWriter.close();
+
+        String[] stagedFiles = {"Hello.txt", "test.txt", "Hello1.txt"};
+        
         String[] hashes = new String[stagedFiles.length];
+
         for (int i = 0; i < stagedFiles.length; i++) {
             hashes[i] = hashFile(stagedFiles[i]);
         }
+
         System.out.println("Files are ready to be staged.");
+
         stageFiles(stagedFiles, hashes);
-        stageFiles(stagedFiles, hashes);
-        writer = new BufferedWriter(new FileWriter("Hello.txt"));
+
+        helloWriter1 = new BufferedWriter(new FileWriter("Hello.txt"));
+
+        System.out.println();
+
         System.out.println("== CHECKING OBJECTS ==");
+
         for (int i = 0; i < stagedFiles.length; i++) {
             File fileTest = new File("git/objects/" + hashes[i]);
+
             System.out.println(
                     "Does the BLOB file for " + stagedFiles[i] + " exist? " + fileTest.exists());
+
             BufferedReader reader2 = new BufferedReader(new FileReader(fileTest));
+
             StringBuilder sb = new StringBuilder();
+
             while (reader2.ready()) {
                 sb.append(reader2.readLine() + "\n");
             }
+
             System.out.println("Contents of BLOB file: " + sb.toString());
+
             reader2.close();
         }
+
         BufferedReader br = new BufferedReader(new FileReader("git/index"));
+
         System.out.println("Current git/index contents:");
+
         while (br.ready()) {
             System.out.println(br.readLine());
         }
+
         br.close();
-        writer.write("I have changed this file twice!" + "\n");
-        writer.write("Now I have written three.");
-        writer.close();
+
+        helloWriter1.write("I have changed this file twice!" + "\n");
+        helloWriter1.write("Now I have written three.");
+
+        helloWriter1.close();
+
         System.out.println("Staging again!");
+
         for (int i = 0; i < stagedFiles.length; i++) {
             hashes[i] = hashFile(stagedFiles[i]);
         }
+
         System.out.println("Files are ready to be staged.");
+
         stageFiles(stagedFiles, hashes);
+
         br = new BufferedReader(new FileReader("git/index"));
+
         System.out.println("Current git/index contents:");
+
         while (br.ready()) {
             System.out.println(br.readLine());
         }
+
+        System.out.println();
+
         System.out.println("== CHECKING OBJECTS ==");
+
         for (int i = 0; i < stagedFiles.length; i++) {
             File fileTest = new File("git/objects/" + hashes[i]);
+
             System.out.println(
                     "Does the BLOB file for " + stagedFiles[i] + " exist? " + fileTest.exists());
+
             BufferedReader reader2 = new BufferedReader(new FileReader(fileTest));
+
             StringBuilder sb = new StringBuilder();
+
             while (reader2.ready()) {
                 sb.append(reader2.readLine() + "\n");
             }
+
             System.out.println("Contents of BLOB file: " + sb.toString());
+
             reader2.close();
         }
 
         br.close();
+
         testGit.delete();
+
         cleanUp();
 
     }
-
     public static boolean checkIfGitExists() throws IOException {
         if (new File("git").mkdir()) {
             return false;
