@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.ArrayList;
 
 public class Git {
 
@@ -75,31 +76,100 @@ public class Git {
         return "";
     }
 
+    // Bugs to fix:
+    // Two files with the same path cannot exist in index
+    // Adding to index doesn't clear the file
     public static void stageFiles(String[] filePaths, String[] hashes) throws IOException {
+
+        // this represents the files that have already been staged
+        ArrayList<String> stagedFiles = new ArrayList<String>();
+
+        // copy what's already in index
+        BufferedReader indexReader = new BufferedReader(new FileReader("git/index"));
+
+        StringBuilder indexContent = new StringBuilder();
+
+
+        String line;
+
+        while ((line = indexReader.readLine()) != null) {
+            indexContent.append(line);
+            indexContent.append("\n");
+        }
+
+        // delete the last char from indexContent as it will always be a blank line if something is
+        // appended to it
+        if (indexContent.length() > 0) {
+            indexContent.deleteCharAt(indexContent.length() - 1);
+        }
+
+        indexReader.close();
+
         for (int i = 0; i < filePaths.length; i++) {
             hashes[i] = createBlobs(filePaths[i]);
             // Here for testing, comment in to check the hashes directly.
             System.out.println("File hash for " + filePaths[i] + ": " + hashFile(filePaths[i]));
         }
+
         if (filePaths.length != hashes.length) {
             throw new IllegalArgumentException(
                     "One or more files doesn't have a corresponding hash");
         }
+
         BufferedWriter bw = new BufferedWriter(new FileWriter("git/index"));
+
+
+        System.out.println(indexContent.toString());
+
+        // write in indexContent before staging new files
+        bw.write(indexContent.toString());
+
         for (int i = 0; i < filePaths.length; i++) {
             if (!Files.isRegularFile(Path.of(filePaths[i]))) {
                 bw.close();
                 throw new IOException("No such file: " + filePaths[i]);
             }
-            bw.write(hashes[i] + " git-project-Yari/" + filePaths[i]);
-            if (i != filePaths.length - 1) {
-                bw.write("\n");
+
+            // before staging the file check to make sure that it hasn't already been staged and
+            // that it's not already inside of index
+            // if indexContent contains filePaths[i] or filePaths[i] has already been staged
+            // continue
+            if (!willFileBeStaged(stagedFiles, indexContent.toString(), filePaths[i])) {
+                continue;
+            } else {
+                // only write to index if neither of the above conditions are true
+                bw.write(hashes[i] + " git-project-Yari/" + filePaths[i]);
+
+                // write in a new line if the next file is gonna be staged
+                if (i != filePaths.length - 1) {
+                    if (willFileBeStaged(stagedFiles, indexContent.toString(), filePaths[i + 1])) {
+                        bw.write("\n");
+                    }
+                }
+
+                stagedFiles.add(filePaths[i]);
             }
+
         }
+
         bw.close();
     }
 
-    public static void testGit() throws IOException {
+    // this method determines whether or not a file will be staged
+    // it takes in an ArrayList of files that have already been staged and the contents of the index
+    // file before staging and the file path
+    public static boolean willFileBeStaged(ArrayList<String> stagedFiles, String indexContent,
+            String filePath) {
+        if (indexContent.contains(filePath)) {
+            return false;
+        } else if (stagedFiles.contains(filePath)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+     public static void testGit() throws IOException {
         System.out.println("== Initial set up ==");
 
         init();
@@ -274,7 +344,6 @@ public class Git {
         cleanUp();
 
     }
-
     public static boolean checkIfGitExists() throws IOException {
         if (new File("git").mkdir()) {
             return false;
