@@ -80,7 +80,8 @@ public class Git {
     // Bugs to fix:
     // Two files with the same path cannot exist in index
     // Adding to index doesn't clear the file
-    // When a file is modified and staged again, replace its existing index entry with the new hash.
+    // When a file is modified and staged again, replace its existing index entry
+    // with the new hash.
     public static void stageFiles(String[] filePaths, String[] hashes) throws IOException {
 
         String[] relativeFilePaths = changeBareFileNamesToRelativePaths(filePaths);
@@ -92,7 +93,6 @@ public class Git {
         BufferedReader indexReader = new BufferedReader(new FileReader("git/index"));
 
         StringBuilder indexContent = new StringBuilder();
-
 
         String line;
 
@@ -116,29 +116,36 @@ public class Git {
             filePathHashMap.put(relativeFilePaths[i], hashes[i]);
         }
 
-        // assuming indexContent.length() > 0, we need to check each file in filePaths that's also
+        // assuming indexContent.length() > 0, we need to check each file in filePaths
+        // that's also
         // already inside of index to make sure it hasn't been modified
-        // To do this, I'll first need to parse indexContent into an ArrayList of String arrays
+        // To do this, I'll first need to parse indexContent into an ArrayList of String
+        // arrays
         // each index in the List corresponds to a path/hash pair
-        // the first index in the String array is the file path, the second index is that file's
+        // the first index in the String array is the file path, the second index is
+        // that file's
         // hash
         ArrayList<String[]> entries = parseIndexContent(indexContent);
 
-        // Then, I'll loop through the list and check for any files with contradicting hashes (files
+        // Then, I'll loop through the list and check for any files with contradicting
+        // hashes (files
         // that have been modified)
 
         // loop through entries
         for (int i = 0; i < entries.size(); i++) {
             // check filePathHashMap for entries.get(i)[0]
-            // if filePathHashMap doesn't contain this path, continue (meaning that file isn't being
+            // if filePathHashMap doesn't contain this path, continue (meaning that file
+            // isn't being
             // staged again)
             if (!filePathHashMap.containsKey(entries.get(i)[1])) {
                 continue;
             }
 
-            // if filePathHashMap does contain this path, confirm that entries.get(i)[0] is that
+            // if filePathHashMap does contain this path, confirm that entries.get(i)[0] is
+            // that
             // same as filePathHashMap.get(entries.get(i)[1])
-            // if not delete that entire entry from indexContent, it will be readded with the
+            // if not delete that entire entry from indexContent, it will be readded with
+            // the
             // correct hash later!
             if (!entries.get(i)[0].equals(filePathHashMap.get(entries.get(i)[1]))) {
                 // remove entries.get(i) from entries
@@ -146,14 +153,15 @@ public class Git {
 
                 // rewrite indexContent with the updated entries list
                 indexContent = updateIndexContent(entries);
-            } 
+            }
         }
 
-        // delete the last char from indexContent as it will always be a blank line if something has
+        // delete the last char from indexContent as it will always be a blank line if
+        // something has
         // been appended to it
 
         // if (indexContent.length() > 0) {
-        //     indexContent.deleteCharAt(indexContent.length() - 1);
+        // indexContent.deleteCharAt(indexContent.length() - 1);
         // }
 
         if (filePaths.length != hashes.length) {
@@ -162,7 +170,6 @@ public class Git {
         }
 
         BufferedWriter bw = new BufferedWriter(new FileWriter("git/index"));
-
 
         System.out.println(indexContent.toString());
 
@@ -175,7 +182,8 @@ public class Git {
                 throw new IOException("No such file: " + filePaths[i]);
             }
 
-            // before staging the file check to make sure that it hasn't already been staged and
+            // before staging the file check to make sure that it hasn't already been staged
+            // and
             // that it's not already inside of index
             // if indexContent contains filePaths[i] or filePaths[i] has already been staged
             // continue
@@ -201,7 +209,8 @@ public class Git {
     }
 
     // this method determines whether or not a file will be staged
-    // it takes in an ArrayList of files that have already been staged and the contents of the index
+    // it takes in an ArrayList of files that have already been staged and the
+    // contents of the index
     // file before staging and the file path
     public static boolean willFileBeStaged(ArrayList<String> stagedFiles, String indexContent,
             String filePath) {
@@ -214,22 +223,26 @@ public class Git {
         }
     }
 
-    // this method takes the entries already within index and parses them into: an ArrayList of
+    // this method takes the entries already within index and parses them into: an
+    // ArrayList of
     // String arrays
     // each index in the List corresponds to a path/hash pair
-    // the first index in the String array is the file's hash, the second index is that file path
+    // the first index in the String array is the file's hash, the second index is
+    // that file path
     // the helper returns this parsed list
     // it takes in the contents of the index file as a StringBuilder
     public static ArrayList<String[]> parseIndexContent(StringBuilder indexContent) {
         ArrayList<String[]> entries = new ArrayList<String[]>();
 
-        // split indexContent into a String[] where each index is a line from the original
+        // split indexContent into a String[] where each index is a line from the
+        // original
         // indexContent StringBuilder
         String[] indexLines = indexContent.toString().split("\\R");
 
         // loop through indexLines
         for (int i = 0; i < indexLines.length; i++) {
-            // if the current line isn't empty, split it by space, then add that array to entries
+            // if the current line isn't empty, split it by space, then add that array to
+            // entries
             if (!indexLines[i].isEmpty()) {
                 String[] entry = indexLines[i].split(" ", 2);
                 entries.add(entry);
@@ -239,22 +252,21 @@ public class Git {
         return entries;
     }
 
-    // this method is for after an entry is removed from the index file, and after that entry has
-    // been removed from the entries list
+    // this method is for after an entry is removed from the index file, and after that entry has been removed from the entries list
     // it takes in the entries list
     public static StringBuilder updateIndexContent(ArrayList<String[]> entries) {
         StringBuilder indexContent = new StringBuilder();
 
         // loop through entries
         for (int i = 0; i < entries.size(); i++) {
-            // append the second index of the current entry array to indexContent
-            indexContent.append(entries.get(i)[1]);
+            // append the first index of the current entry (hash) array to indexContent
+            indexContent.append(entries.get(i)[0]);
 
             // append a space to indexContent
             indexContent.append(" ");
 
-            // append the first index of the current entry array to indexContent
-            indexContent.append(entries.get(i)[0]);
+            // append the second index of the current entry (path) array to indexContent
+            indexContent.append(entries.get(i)[1]);
 
             // append a new line to indexContent
             indexContent.append("\n");
@@ -263,7 +275,8 @@ public class Git {
         return indexContent;
     }
 
-    // this method turns the bare file name of each input file and converts it into its relative
+    // this method turns the bare file name of each input file and converts it into
+    // its relative
     // file path
     // e.g before: abc.txt, after: git-project-Yari/abc.txt
     // it takes in a String[] of the bare file names
@@ -284,6 +297,99 @@ public class Git {
         return relativePaths;
     }
 
+    // This method creates a tree object that represents the directory git-project-Yari/dirPath
+    // it takes in the path of the directory and an ArrayList that stores the direct
+    // children of dirPath
+    // it returns the hash of the tree it created
+    public static String createTree(ArrayList<String> workingList, String dirPath) {
+
+        try {
+
+            //get the working list with only the files in dirPath
+            ArrayList<String> updatedList = updateWorkingList(workingList, dirPath);
+            
+            //get the working list without the directory path
+            ArrayList<String> newWorkingList = removeDirectoryPath(updatedList);
+
+            //create the StringBuilder for the tree's contents
+            StringBuilder treeContents = new StringBuilder();
+
+            //loop through working list and append each entry to treeContents with a new line after each entry
+            for (int i = 0; i < newWorkingList.size(); i++) {
+                treeContents.append(newWorkingList.get(i));
+
+                //if we're not on the last entry append a new line to treeContents
+                if (i != newWorkingList.size() - 1) {
+                    treeContents.append("\n");
+                }
+            }
+
+            //write treeContents into a new file so I can call hashFile() on it cuz I don't feel like writing a new method to hash just a String
+            File treeContentsFile = new File("treeContents");
+            FileWriter treeContentsWriter = new FileWriter(treeContentsFile);
+            treeContentsWriter.write(treeContents.toString());
+            treeContentsWriter.close();
+
+            treeContentsFile.createNewFile();
+
+            //get the SHA-1 hash of treeContents
+            String treeHash = hashFile("treeContents");
+
+            //call createBlobs(treeContentsFile) to create a new file in the objects folder
+            createBlobs("treeContents"); 
+
+            treeContentsFile.delete();
+
+            return treeHash;
+
+        } catch (IOException e) {
+            System.out.println("File error: " + e.getMessage());
+            return "";
+        }
+    }
+
+    // this helper creates and returns the working list for the directory dirPath
+    //it iterates through working list and removes any files that are not in dirPath
+    public static ArrayList<String> updateWorkingList(ArrayList<String> workingList, String dirPath) {
+
+            ArrayList<String> updatedList = new ArrayList<String>();
+
+            //loop through workingList
+            for (int i = 0; i < workingList.size(); i++) {
+                if (workingList.get(i).contains(dirPath)) {
+                    updatedList.add(workingList.get(i));
+                }
+            }
+
+            return updatedList;
+
+    }
+
+    //this helper takes the working list and removes the directory path from each entry
+    public static ArrayList<String> removeDirectoryPath(ArrayList<String> workingList) {
+
+        ArrayList<String> noDirPathWorkingList = new ArrayList<String>();
+
+        //loop through the working list
+        for (int i = 0; i < workingList.size(); i++) {
+
+            //split each entry into {"BLOB", "hash", "path"}
+            String[] splitEntry = workingList.get(i).split(" ");
+
+            //the file name is just the substring of splitEntry[2] from the last index of "/" to the end
+            String fileName = splitEntry[2].substring(splitEntry[2].lastIndexOf("/") + 1);
+
+            //create the StringBuilder for the updated entry without the directory path
+            StringBuilder updatedEntry = new StringBuilder();
+
+            updatedEntry.append(splitEntry[0] + " " + splitEntry[1] + " " + fileName);
+
+            //add updatedEntry to noDirPathWorkingList
+            noDirPathWorkingList.add(updatedEntry.toString());
+        }
+
+        return noDirPathWorkingList;
+    }
 
     public static void testGit() throws IOException {
         System.out.println("== Initial set up ==");
@@ -303,7 +409,8 @@ public class Git {
 
         init();
 
-        // if wow.txt still exists that means init() didn't create a new repository and the old one
+        // if wow.txt still exists that means init() didn't create a new repository and
+        // the old one
         // is the one we have rn
         System.out.println("Does wow.txt still exist? " + testGit.exists());
 
@@ -361,8 +468,10 @@ public class Git {
 
         duplicateHelloFileWriter.close();
 
-        // this is a directory only for testing, it will be deleted at the end of testing
-        // for now, I'll use it to test that two files with the same content but different paths add
+        // this is a directory only for testing, it will be deleted at the end of
+        // testing
+        // for now, I'll use it to test that two files with the same content but
+        // different paths add
         // two separate entries to index with the same hash but different paths
         File testingDirectory = new File("TestingDirectory");
         testingDirectory.mkdir();
@@ -374,8 +483,7 @@ public class Git {
         differentPathHelloWriter.write("I have changed this file once.");
         differentPathHelloWriter.close();
 
-
-        String[] stagedFiles = {"Hello.txt", "test.txt", "Hello1.txt", "TestingDirectory/Hello.txt"};
+        String[] stagedFiles = { "Hello.txt", "test.txt", "Hello1.txt", "TestingDirectory/Hello.txt" };
 
         String[] hashes = new String[stagedFiles.length];
 
@@ -385,10 +493,10 @@ public class Git {
 
         System.out.println("Files are ready to be staged.");
 
-
         stageFiles(stagedFiles, hashes);
 
-        // modify Hello1.txt and stage it again, should replace its existing index entry with the
+        // modify Hello1.txt and stage it again, should replace its existing index entry
+        // with the
         // new hash
 
         FileWriter duplicateHelloFileWriter1 = new FileWriter("Hello1.txt");
@@ -486,6 +594,18 @@ public class Git {
 
         testGit.delete();
 
+        System.out.println();
+
+        System.out.println("== Testing createTree() ==");
+        
+        ArrayList<String> workingList = new ArrayList<>();
+
+        workingList.add("blob abc123 project/docs/Hello.txt");
+        workingList.add("blob def456 project/docs/World.txt");
+        workingList.add("blob ghi789 project/Main.java");
+
+        System.out.println(createTree(workingList, "project/docs"));
+
         cleanUp();
 
     }
@@ -532,7 +652,7 @@ public class Git {
             testingDirectoryFiles[i].delete();
         }
         testingDirectory.delete();
-    }
 
+    }
 
 }
