@@ -1,2 +1,0 @@
-I am testing this file for hashing.
-Adding another line to the BLOB of this file.
