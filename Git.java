@@ -252,7 +252,8 @@ public class Git {
         return entries;
     }
 
-    // this method is for after an entry is removed from the index file, and after that entry has been removed from the entries list
+    // this method is for after an entry is removed from the index file, and after
+    // that entry has been removed from the entries list
     // it takes in the entries list
     public static StringBuilder updateIndexContent(ArrayList<String[]> entries) {
         StringBuilder indexContent = new StringBuilder();
@@ -297,7 +298,8 @@ public class Git {
         return relativePaths;
     }
 
-    // This method creates a tree object that represents the directory git-project-Yari/dirPath
+    // This method creates a tree object that represents the directory
+    // git-project-Yari/dirPath
     // it takes in the path of the directory and an ArrayList that stores the direct
     // children of dirPath
     // it returns the hash of the tree it created
@@ -305,26 +307,28 @@ public class Git {
 
         try {
 
-            //get the working list with only the files in dirPath
+            // get the working list with only the files in dirPath
             ArrayList<String> updatedList = updateWorkingList(workingList, dirPath);
-            
-            //get the working list without the directory path
+
+            // get the working list without the directory path
             ArrayList<String> newWorkingList = removeDirectoryPath(updatedList);
 
-            //create the StringBuilder for the tree's contents
+            // create the StringBuilder for the tree's contents
             StringBuilder treeContents = new StringBuilder();
 
-            //loop through working list and append each entry to treeContents with a new line after each entry
+            // loop through working list and append each entry to treeContents with a new
+            // line after each entry
             for (int i = 0; i < newWorkingList.size(); i++) {
                 treeContents.append(newWorkingList.get(i));
 
-                //if we're not on the last entry append a new line to treeContents
+                // if we're not on the last entry append a new line to treeContents
                 if (i != newWorkingList.size() - 1) {
                     treeContents.append("\n");
                 }
             }
 
-            //write treeContents into a new file so I can call hashFile() on it cuz I don't feel like writing a new method to hash just a String
+            // write treeContents into a new file so I can call hashFile() on it cuz I don't
+            // feel like writing a new method to hash just a String
             File treeContentsFile = new File("treeContents");
             FileWriter treeContentsWriter = new FileWriter(treeContentsFile);
             treeContentsWriter.write(treeContents.toString());
@@ -332,11 +336,11 @@ public class Git {
 
             treeContentsFile.createNewFile();
 
-            //get the SHA-1 hash of treeContents
+            // get the SHA-1 hash of treeContents
             String treeHash = hashFile("treeContents");
 
-            //call createBlobs(treeContentsFile) to create a new file in the objects folder
-            createBlobs("treeContents"); 
+            // call createBlobs(treeContentsFile) to create a new file in the objects folder
+            createBlobs("treeContents");
 
             treeContentsFile.delete();
 
@@ -349,46 +353,276 @@ public class Git {
     }
 
     // this helper creates and returns the working list for the directory dirPath
-    //it iterates through working list and removes any files that are not in dirPath
+    // it iterates through working list and removes any files that are not in
+    // dirPath
     public static ArrayList<String> updateWorkingList(ArrayList<String> workingList, String dirPath) {
 
-            ArrayList<String> updatedList = new ArrayList<String>();
+        ArrayList<String> updatedList = new ArrayList<String>();
 
-            //loop through workingList
-            for (int i = 0; i < workingList.size(); i++) {
-                if (workingList.get(i).contains(dirPath)) {
-                    updatedList.add(workingList.get(i));
-                }
+        // loop through workingList
+        for (int i = 0; i < workingList.size(); i++) {
+
+            // get the path of the current entry
+            String path = workingList.get(i).split(" ", 3)[2];
+
+            // initialize the parent directory as an empty String
+            String parentDir = "";
+
+            // if there is a '/' in path, parentDir is the substring of path from 0 to the
+            // last index of '/'
+            if (path.contains("/")) {
+                parentDir = path.substring(0, path.lastIndexOf('/'));
             }
 
-            return updatedList;
+            // if parentDir is the same as dirPath (the parent directory of the current
+            // entry is the directory we're trying to collapse), remove the current entry
+            // from workingList
+            if (parentDir.equals(dirPath)) {
+                updatedList.add(workingList.get(i));
+            }
+
+        }
+
+        return updatedList;
 
     }
 
-    //this helper takes the working list and removes the directory path from each entry
+    // this helper takes the working list and removes the directory path from each
+    // entry
     public static ArrayList<String> removeDirectoryPath(ArrayList<String> workingList) {
 
         ArrayList<String> noDirPathWorkingList = new ArrayList<String>();
 
-        //loop through the working list
+        // loop through the working list
         for (int i = 0; i < workingList.size(); i++) {
 
-            //split each entry into {"BLOB", "hash", "path"}
-            String[] splitEntry = workingList.get(i).split(" ");
+            // split each entry into {"blob", "hash", "path"}
+            String[] splitEntry = workingList.get(i).split(" ", 3);
 
-            //the file name is just the substring of splitEntry[2] from the last index of "/" to the end
+            // the file name is just the substring of splitEntry[2] from the last index of
+            // "/" to the end
             String fileName = splitEntry[2].substring(splitEntry[2].lastIndexOf("/") + 1);
 
-            //create the StringBuilder for the updated entry without the directory path
+            // create the StringBuilder for the updated entry without the directory path
             StringBuilder updatedEntry = new StringBuilder();
 
             updatedEntry.append(splitEntry[0] + " " + splitEntry[1] + " " + fileName);
 
-            //add updatedEntry to noDirPathWorkingList
+            // add updatedEntry to noDirPathWorkingList
             noDirPathWorkingList.add(updatedEntry.toString());
         }
 
         return noDirPathWorkingList;
+    }
+
+    // this method looks at the index file and constructs the entire directory tree
+    // from the staged files
+    // it returns the hash of the tree
+    public static String createTreeFromIndex() {
+
+        // Read index into an ArrayList
+        // create the workingList by adding the "blob" prefix and sorting alphabeticaly
+        // by path
+        ArrayList<String> workingList = buildWorkingList();
+
+        // if there are no staged files, return an empty String
+        if (workingList.isEmpty()) {
+            return "";
+        }
+
+        // find the deepest directory
+        String deepestDir = findDeepestDirectory(workingList);
+
+        // keep looping as long as the deepest directory isn't an empty String
+        // when deepestDir is an empty String, it represents the repository root.
+        // Therefore, there are no deeper directories left to compress, so we can create
+        // the final root tree
+        while (!deepestDir.equals("")) {
+
+            // call createTree(workingList, deepestDir)
+            String treeHash = createTree(workingList, deepestDir);
+
+            // remove the children of deepestDir
+            // add the new tree to entry
+            collapseDirectory(workingList, deepestDir, treeHash);
+
+            // find the new deepest directory that needs to be compressed, and update
+            // deepestDir
+            deepestDir = findDeepestDirectory(workingList);
+        }
+
+        // return the hash of the final tree
+        return createTree(workingList, "");
+    }
+
+    // this method looks inside of index and builds the working list
+    // it takes each entry inside of index, puts "blob " infront of it, and sorts
+    // then entries alphabetically by their path
+    public static ArrayList<String> buildWorkingList() {
+
+        try {
+            ArrayList<String> entries = new ArrayList<String>();
+
+            // read the index file
+            BufferedReader indexReader = new BufferedReader(new FileReader("git/index"));
+            String line;
+
+            while ((line = indexReader.readLine()) != null) {
+                // create the entry StringBuilder
+                StringBuilder entry = new StringBuilder();
+
+                // append "blob " to entry
+                entry.append("blob ");
+
+                // append line to entry
+                entry.append(line);
+
+                // add entry to entries
+                entries.add(entry.toString());
+            }
+
+            indexReader.close();
+
+            // Now that I've got all the entries, I gotta sort em
+            sortWorkingList(entries);
+
+            return entries;
+
+        } catch (IOException e) {
+            System.out.println("File error: " + e.getMessage());
+            return new ArrayList<String>();
+        }
+
+    }
+
+    // this selection sort algorithm sorts the working list based on file path
+    public static void sortWorkingList(ArrayList<String> workingList) {
+        // loop through workingList
+        for (int i = 0; i < workingList.size(); i++) {
+            // set the min index to i (this is meant to represent the index in entries with
+            // the smallest alphabetical value)
+            int minIndex = i;
+
+            // loop through the rest of the list to find the entry with the alphabetically
+            // smallest path among the remaining entries
+            for (int j = i + 1; j < workingList.size(); j++) {
+
+                // get the path at both j and i
+                String path1 = workingList.get(j).split(" ", 3)[2];
+                String path2 = workingList.get(minIndex).split(" ", 3)[2];
+
+                // if path 1 comes before path 2 make minIndex j
+                if (path1.compareTo(path2) < 0) {
+                    minIndex = j;
+                }
+            }
+
+            // store entries.get(i) as a temp, then make i the value of minIndex, then make
+            // minIndex temp
+            String temp = workingList.get(i);
+            workingList.set(i, workingList.get(minIndex));
+            workingList.set(minIndex, temp);
+        }
+    }
+
+    // this helper finds the deepest directory in workingList and returns its path
+    public static String findDeepestDirectory(ArrayList<String> workingList) {
+
+        // initialize the max depth, it keeps track of the deepest directory found so
+        // far
+        // it starts at -1 because the minimum possible directory depth is 0, which
+        // guarantees that the first directory I examine will be selected, even if it's
+        // the repository root
+        int maxDepth = -1;
+
+        // initialize the path with the most slashes
+        String deepestDir = "";
+
+        // loop through workingList
+        for (int i = 0; i < workingList.size(); i++) {
+
+            // get the path for the current entry
+            String path = workingList.get(i).split(" ", 3)[2];
+
+            // initialize the parent directory
+            String parentDir = "";
+
+            // if path contains a slash, the parent directory is the substring of path from
+            // 0 to the las index of '/'
+            if (path.contains("/")) {
+                parentDir = path.substring(0, path.lastIndexOf('/'));
+            }
+
+            // initialize the depth variable of the current directory
+            int depth = 0;
+
+            // Start at depth 1 for nonempty directories
+            if (!parentDir.equals("")) {
+                depth = 1;
+            }
+
+            // loop through parentDir and add 1 to depth for every slash in parentDir
+            for (int j = 0; j < parentDir.length(); j++) {
+                if (parentDir.charAt(j) == '/') {
+                    depth++;
+                }
+            }
+
+            if (depth > maxDepth) {
+                maxDepth = depth;
+                deepestDir = parentDir;
+            }
+
+        }
+
+        return deepestDir;
+    }
+
+    // this helper goes into the working list, and removes all the direct children
+    // of a directory and replaces them with one tree entry
+    public static void collapseDirectory(ArrayList<String> workingList, String dirPath, String treeHash) {
+
+        // loop backward through workingList to make sure no bullshit occurs when
+        // removing
+        for (int i = workingList.size() - 1; i >= 0; i--) {
+
+            // get the path of the current entry
+            String path = workingList.get(i).split(" ", 3)[2];
+
+            // initialize the parent directory
+            String parentDir = "";
+
+            // if path has a slash in it, parentDir is the substring of path from 0 to the
+            // last index of '/'
+            if (path.contains("/")) {
+                parentDir = path.substring(0, path.lastIndexOf('/'));
+            }
+
+            // if parentDir is the same as dirPath (the parent directory of the current
+            // entry is the directory we're trying to collapse), remove the current entry
+            // from workingList
+            if (parentDir.equals(dirPath)) {
+                workingList.remove(i);
+            }
+        }
+
+        // create the StringBuilder for the new tree entry
+        StringBuilder treeEntry = new StringBuilder();
+
+        // append "tree " to treeEntry
+        treeEntry.append("tree ");
+
+        // append treeHash and a space to treeEntry
+        treeEntry.append(treeHash + " ");
+
+        // append dirPath to treeEntry
+        treeEntry.append(dirPath);
+
+        // add treeEntry to workingList
+        workingList.add(treeEntry.toString());
+
+        // sort workingList again
+        sortWorkingList(workingList);
     }
 
     public static void testGit() throws IOException {
@@ -507,7 +741,7 @@ public class Git {
 
         System.out.println();
 
-        stageFiles(stagedFiles, hashes);
+        // stageFiles(stagedFiles, hashes);
 
         helloWriter1 = new BufferedWriter(new FileWriter("Hello.txt"));
 
@@ -597,17 +831,233 @@ public class Git {
         System.out.println();
 
         System.out.println("== Testing createTree() ==");
-        
+
         ArrayList<String> workingList = new ArrayList<>();
+
+        // Test 1: multiple blobs in the same directory
+
+        /*
+         * Predicted output:
+         * 
+         * Docs tree hash: <docsTreeHash>
+         * Docs tree object exists: true
+         * Docs tree contents:
+         * blob abc123 Hello.txt
+         * blob def456 World.txt
+         * 
+         */
 
         workingList.add("blob abc123 project/docs/Hello.txt");
         workingList.add("blob def456 project/docs/World.txt");
         workingList.add("blob ghi789 project/Main.java");
 
-        System.out.println(createTree(workingList, "project/docs"));
+        String docsTreeHash = createTree(workingList, "project/docs");
+
+        System.out.println("Docs tree hash: " + docsTreeHash);
+
+        System.out.println("Docs tree object exists: " + new File("git/objects/" + docsTreeHash).exists());
+
+        System.out.println("Docs tree contents:");
+
+        BufferedReader treeReader = new BufferedReader(new FileReader("git/objects/" + docsTreeHash));
+        String treeLine;
+
+        while ((treeLine = treeReader.readLine()) != null) {
+            System.out.println(treeLine);
+        }
+
+        treeReader.close();
+
+        System.out.println();
+
+        // Test 2: Create a parent tree containing a blob and a tree
+
+        /*
+         * Predicted output:
+         * 
+         * Project tree hash: <projectTreeHash>
+         * Project tree object exists: true
+         * Project tree contents:
+         * tree <docsTreeHash> docs
+         * blob ghi789 Main.java
+         * 
+         */
+
+        ArrayList<String> parentWorkingList = new ArrayList<String>();
+
+        parentWorkingList.add("tree " + docsTreeHash + " project/docs");
+        parentWorkingList.add("blob ghi789 project/Main.java");
+
+        String projectTreeHash = createTree(parentWorkingList, "project");
+
+        System.out.println("Project tree hash: " + projectTreeHash);
+        System.out.println("Project tree object exists: " + new File("git/objects/" + projectTreeHash).exists());
+
+        System.out.println("Project tree contents:");
+
+        treeReader = new BufferedReader(new FileReader("git/objects/" + projectTreeHash));
+
+        while ((treeLine = treeReader.readLine()) != null) {
+            System.out.println(treeLine);
+        }
+
+        treeReader.close();
+
+        System.out.println();
+
+        // Test 3: Make sure that createTree() doesn't modify workingList
+
+        /*
+         * Predicted output:
+         * 
+         * Original workingList after createTree():
+         * blob abc123 project/docs/Hello.txt
+         * blob def456 project/docs/World.txt
+         * blob ghi789 project/Main.java
+         */
+
+        System.out.println("Original workingList after createTree():");
+
+        for (int i = 0; i < workingList.size(); i++) {
+            System.out.println(workingList.get(i));
+        }
+
+        System.out.println();
+
+        // Test 4: Create tree for repository root
+
+        /*
+         * Predicted output:
+         * 
+         * Root tree hash: <rootTreeHash>
+         * Root tree object exists: true
+         * Root tree contents:
+         * tree <projectTreeHash> project
+         * blob aaa111 README.md
+         */
+
+        ArrayList<String> rootWorkingList = new ArrayList<String>();
+
+        rootWorkingList.add("tree " + projectTreeHash + " project");
+        rootWorkingList.add("blob aaa111 README.md");
+
+        String rootTreeHash = createTree(rootWorkingList, "");
+
+        System.out.println("Root tree hash: " + rootTreeHash);
+        System.out.println("Root tree object exists: " + new File("git/objects/" + rootTreeHash).exists());
+
+        System.out.println("Root tree contents:");
+
+        treeReader = new BufferedReader(new FileReader("git/objects/" + rootTreeHash));
+
+        while ((treeLine = treeReader.readLine()) != null) {
+            System.out.println(treeLine);
+        }
+
+        treeReader.close();
+
+        System.out.println();
+
+        // Test 5: Create an entire directory tree from staged index
+
+        /*
+         * Predicted output:
+         * Working list built from index:
+         * blob <helloHash> git-project-Yari/Hello1.txt
+         * blob <testingHelloHash> git-project-Yari/TestingDirectory/Hello.txt
+         * blob <testHash> git-project-Yari/test.txt
+         * 
+         * Final root tree hash: <finalTreeHash>
+         * Root tree object exists: true
+         * 
+         * Final root tree contents:
+         * blob <helloHash> Hello.txt
+         * blob <hello1Hash> Hello1.txt
+         * tree <testingDirectoryTreeHash> TestingDirectory
+         * blob <testHash> test.txt
+         */
+
+        System.out.println("== Testing createTreeFromIndex() ==");
+
+        // Display workingList built from index
+        ArrayList<String> indexWorkingList = buildWorkingList();
+
+        System.out.println("workingList built from index");
+
+        for (int i = 0; i < indexWorkingList.size(); i++) {
+            System.out.println(indexWorkingList.get(i));
+        }
+
+        System.out.println();
+
+        // Save index contents before constructing new tree
+        StringBuilder indexBefore = new StringBuilder();
+
+        BufferedReader indexReader = new BufferedReader(new FileReader("git/index"));
+        String indexLine;
+
+        while ((indexLine = indexReader.readLine()) != null) {
+            indexBefore.append(indexLine + "\n");
+        }
+
+        indexReader.close();
+
+        // Create the entire tree
+        String finalTreeHash = createTreeFromIndex();
+
+        System.out.println("Final root tree hash: " + finalTreeHash);
+
+        System.out.println("Root tree object exists: " + new File("git/objects/" + finalTreeHash).exists());
+
+        System.out.println();
+
+        // Display final root tree contents
+        System.out.println("Final root tree contents:");
+
+        treeReader = new BufferedReader(new FileReader("git/objects/" + finalTreeHash));
+
+        while ((treeLine = treeReader.readLine()) != null) {
+            System.out.println(treeLine);
+        }
+
+        treeReader.close();
+
+        System.out.println();
+
+        // Test 6: Verify that index wasn't modified
+
+        /*
+         * Predicted output:
+         * Index unchanged: true
+         */
+
+        StringBuilder indexAfter = new StringBuilder();
+
+        indexReader = new BufferedReader(new FileReader("git/index"));
+
+        while ((indexLine = indexReader.readLine()) != null) {
+            indexAfter.append(indexLine + "\n");
+        }
+
+        indexReader.close();
+
+        System.out.println("Index unchanged: " + indexBefore.toString().equals(indexAfter.toString()));
+
+        System.out.println();
+
+        // Test 7: Running createTreeFromIndex() again
+        // should produce the exact same root hash
+
+        /*
+         * Predicted output:
+         * Same root hash on second run: true
+         */
+
+        String secondTreeHash = createTreeFromIndex();
+
+        System.out.println("Same root hash on second run: " + finalTreeHash.equals(secondTreeHash));
 
         cleanUp();
-
     }
 
     public static boolean checkIfGitExists() throws IOException {
